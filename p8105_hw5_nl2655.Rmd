@@ -13,17 +13,21 @@ library(readr)
 set.seed(10)
 ```
 
+# Raw iris data
+
 ```{r}
 iris_with_missing = iris %>% 
   map_df(~replace(.x, sample(1:150, 20), NA)) %>%
   mutate(Species = as.character(Species))
 ```
 
+# Replacing missing
+
 ```{r}
 no_missing = function(x) {
   
   if (is.numeric(x)) {
-    x = replace(x, is.na(x), round(mean(x,, na.rm=TRUE), digits = 1))
+    x = replace(x, is.na(x), round(mean(x, na.rm=TRUE), digits = 1))
   }
   else if (!is.numeric(x)) {
     x = replace(x, is.na(x), "virginica")
@@ -33,19 +37,78 @@ no_missing = function(x) {
 iris_no_na =
 map(iris_with_missing, no_missing) %>% 
 as.data.frame()
-iris_no_missing
+iris_no_na
 ```
 
-```{r}
-z_df =
-tibble(
-   list.files("./z")
-  )
-read_csv = function(x) {
-  read_csv(x)
-}
-map(z_df, read_csv)
+# plot on longitudinal study
 
-read_csv("./z/con_01.csv")
+```{r}
+read_csv = function(x) {
+   read.csv(x)
+}
+z_df =
+  tibble(list.files("./z")) %>% 
+  rename(id = `list.files("./z")`) %>% 
+  mutate(
+    root = "./z/", 
+    path = str_c(root, id) ,
+    data = map(path, read_csv)
+    ) %>% 
+   mutate(
+     id = str_replace(id, ".csv", ""),
+     ) %>% 
+  select(id, data) %>% 
+  unnest() %>% 
+   pivot_longer(
+    week_1:week_8,
+    names_to = "weeks",
+    names_prefix = "week_",
+    values_to = "result")
+
+z_df %>% 
+  ggplot(aes(x = weeks, y = result)) +
+  geom_point(aes(group=id,color=id)) +
+  geom_line(aes(group=id,color=id)) +
+  labs(
+    x="Weeks",
+    y="Result",
+    title = "longitudinal study rusult"
+  )+
+  theme(legend.position = "bottom")
+```
+
+# simulation
+
+```{r}
+sim_regression = function(n = 30, beta0 = 2, beta1) {
+  
+  sim_data = tibble(
+    x = rnorm(n),
+    y = beta0 + beta1 * x + rnorm(n, 0, sqrt(50))
+  )
+  
+  ls_fit = lm(y ~ x, data = sim_data)
+  tibble(
+    beta1_hat = coef(ls_fit)[2],
+    p_value = broom::tidy(ls_fit)[[2,5]]
+  )
+  
+}
+
+sim_null = 
+  rerun(10000, sim_regression(beta1 = 0)) %>% 
+  bond_rows()
+sim_null
+
+
+
+sim_curr = 
+  tibble(beta1 = c(1, 2, 3, 4, 5, 6)) %>% 
+  mutate(
+    output_lists = map(.x = beta1, ~rerun(100, sim_regression(beta1 = .x))),
+    estimate_dfs = map(output_lists, bind_rows)) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_dfs)
+sim_results
 ```
 
