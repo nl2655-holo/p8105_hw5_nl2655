@@ -1,0 +1,15 @@
+---
+title: "p8105_hw5_nl2655"
+author: "Nankun"
+date: "2019/11/11"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+
+set.seed(1551)
+```
+
